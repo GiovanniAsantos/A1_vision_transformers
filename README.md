@@ -136,8 +136,7 @@ pip install -r requirements.txt
 
 **Colab (recomendado, GPU T4).** Abrir `A1_vision_transformers.ipynb`, selecionar runtime **T4**
 (Runtime → Change runtime type → T4 GPU) e executar todas as células (Runtime → Run all). Dataset e pesos são baixados
-do Hugging Face Hub automaticamente. Tempo estimado: ~30–40 min. Ao final, baixar o notebook executado e as pastas
-`figures/` e `results/`.
+do Hugging Face Hub automaticamente. Tempo medido: **35,7 min** na T4, com pico de 5,5 GB de VRAM.
 
 **Local.** Sem GPU o treino completo é lento (o fine-tuning do ViT-B/16 em CPU leva horas). Para validar o notebook de
 ponta a ponta em minutos, há um modo de teste com subconjuntos minúsculos:
@@ -148,15 +147,34 @@ A1_SMOKE=1 jupyter nbconvert --to notebook --execute A1_vision_transformers.ipyn
 
 ## Resultados
 
-_Preencher após a execução na T4 (números impressos no §9 do notebook e salvos em `results/`)._
+Execução completa no Colab T4 (35,7 min). Teste com 5.400 imagens, usado uma única vez. Tabelas completas em
+[`results/`](results/).
 
-| Modelo | Pré-treino | Dados de treino | Parâmetros | Accuracy (teste) | F1 macro | Tempo de treino |
-|---|---|---|---|---|---|---|
-| ViT do zero | — | 100% | 2,7 M | — | — | — |
-| ViT do zero sem PE | — | 100% | 2,7 M | — | — | — |
-| ViT do zero | — | 10% | 2,7 M | — | — | — |
-| ViT-B/16 (fine-tuning) | ImageNet-21k | 100% | 86 M | — | — | — |
-| ViT-B/16 (fine-tuning) | ImageNet-21k | 10% | 86 M | — | — | — |
+| Modelo | Pré-treino | Dados de treino | Parâmetros | Accuracy (teste) | F1 macro | Treino (T4) | Inferência |
+|---|---|---|---|---|---|---|---|
+| ViT do zero | — | 100% (16.200) | 2,7 M | 0,9472 | 0,9452 | 9,9 min | 6.115 img/s |
+| ViT do zero sem PE | — | 100% (16.200) | 2,7 M | 0,9428 | 0,9405 | 9,5 min | 6.165 img/s |
+| ViT do zero | — | 10% (1.620) | 2,7 M | 0,8587 | 0,8541 | 1,5 min | 6.089 img/s |
+| **ViT-B/16 (fine-tuning)** | ImageNet-21k | 100% (16.200) | 85,8 M | **0,9889** | **0,9888** | 10,5 min | 259 img/s |
+| ViT-B/16 (fine-tuning) | ImageNet-21k | 10% (1.620) | 85,8 M | 0,9633 | 0,9632 | 2,0 min | 264 img/s |
+
+### Principais achados
+
+- **O pré-treino domina.** +4,2 p.p. de accuracy com todos os dados (4,7× menos erros) e **+10,5 p.p. com 10%**. O
+  ViT-B/16 treinado com só 1.620 imagens (96,33%) **supera o ViT do zero treinado com 16.200** (94,72%).
+- **O ViT do zero não aprende localidade.** A distância média de atenção fica em ~0,5 do lado da imagem em todas
+  as heads e camadas (atenção global), enquanto o pré-treinado tem heads locais nas primeiras camadas — o *data
+  hunger* do ViT visto por dentro do modelo.
+- **No EuroSAT, a decisão é quase um "saco de patches".** Embaralhar os 64 patches do teste custa só 0,5 p.p. ao
+  ViT do zero, e o positional encoding vale +0,44 p.p. no total. Esse ganho se concentra nas classes de estrutura
+  linear (*Highway* +2,3 e *River* +2,0 de F1).
+- **Os attention maps explicam os erros.** O pré-treinado segue a rodovia, o rio e as fronteiras dos talhões; o do
+  zero acerta *Highway* olhando o contexto (galpões, campos), o que explica suas confusões *Industrial → Highway* e
+  *River → Highway*.
+- **A augmentation moldou o positional encoding.** O PE aprendido forma **anéis concêntricos** em vez de linhas e
+  colunas: sob flips e rotações de 90°, a única posição estável é a distância ao centro.
+- **Custo.** O ViT-B/16 tem 31× mais parâmetros e é 23× mais lento na inferência. Para mapear áreas grandes, o
+  próximo passo seria destilar o modelo grande no pequeno (estilo DeiT).
 
 | Curvas do ViT do zero | Matrizes de confusão |
 |---|---|
@@ -177,15 +195,15 @@ _Preencher após a execução na T4 (números impressos no §9 do notebook e sal
 - [x] `TransformerEncoderBlock` completo: FFN de 2 camadas, LayerNorm e residual connections — base do ViT (§2.3)
 - [x] Patch embedding + `[CLS]` aprendível + positional encoding → ViT completo imagem → logits (§3)
 - [x] Explicação escrita (com prova e demonstração) de por que attention sem PE não preserva posição (§3.1)
-- [ ] ViT treinado **do zero** no EuroSAT (§4) — código pronto, executar na T4
-- [ ] Fine-tuning do ViT-B/16 **pré-treinado** com novo classification head (§5) — código pronto, executar na T4
-- [ ] Tabela quantitativa do zero × pré-treinado + justificativa da arquitetura com base nos dados (§6, §9)
-- [ ] Heatmap de attention weights de ao menos 1 head + interpretação escrita das regiões emergentes (§7)
+- [x] ViT treinado **do zero** no EuroSAT (§4) — 94,72% no teste
+- [x] Fine-tuning do ViT-B/16 **pré-treinado** com novo classification head (§5) — 98,89% no teste
+- [x] Tabela quantitativa do zero × pré-treinado + justificativa da arquitetura com base nos dados (§6, §9)
+- [x] Heatmap de attention weights de ao menos 1 head + interpretação escrita das regiões emergentes (§7)
 - [x] Análise escrita: pré-treinamento BERT × ViT — o que cada um maximiza (§8.1)
 - [x] Análise escrita: DeiT e Swin — o que cada um resolve que o ViT original não resolve (§8.2)
 - [x] Análise escrita: quando ViT supera CNN e quando CNN é preferível, no EuroSAT (§8.3)
-- [ ] Justificativa de hiperparâmetros + o que os resultados revelam + o que mudaria (§4, §5, §8.4 — completar com os números)
-- [x] Requisitos de memória e tempo no topo do notebook (atualizar com os valores medidos na T4)
+- [x] Justificativa de hiperparâmetros + o que os resultados revelam + o que mudaria (§4, §5, §8.4)
+- [x] Requisitos de memória e tempo no topo do notebook, medidos na T4 (35,7 min, 5,5 GB de VRAM de pico)
 
 ## Uso de IA
 

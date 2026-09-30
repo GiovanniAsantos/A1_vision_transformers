@@ -1,0 +1,11 @@
+Classe,"ViT do zero","ViT do zero sem PE","ViT-B/16 pré-treinado (FT)","ViT do zero (10% dados)","ViT-B/16 pré-treinado (FT, 10% dados)"
+AnnualCrop,0.947,0.949,0.988,0.873,0.955
+Forest,0.982,0.989,0.992,0.933,0.975
+HerbaceousVegetation,0.936,0.940,0.978,0.833,0.938
+Highway,0.904,0.881,0.992,0.742,0.964
+Industrial,0.955,0.957,0.994,0.925,0.982
+Pasture,0.921,0.928,0.986,0.797,0.959
+PermanentCrop,0.922,0.908,0.977,0.794,0.934
+Residential,0.975,0.968,0.995,0.926,0.987
+River,0.924,0.904,0.991,0.784,0.959
+SeaLake,0.986,0.982,0.995,0.934,0.979

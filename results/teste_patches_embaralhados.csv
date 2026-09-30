@@ -1,0 +1,3 @@
+Modelo,"Acc original","Acc patches embaralhados","Queda (p.p.)"
+"ViT do zero",0.9472,0.9426,0.5
+"ViT do zero sem PE",0.9428,0.9428,0.0
